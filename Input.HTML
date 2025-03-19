@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climate Health Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f9f9f9;
+            color: #333;
+        }
+        header {
+            position: relative;
+            padding: 30px;
+            background: #ED1B2E;
+            color: white;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .logo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #ED1B2E;
+        }
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .section {
+            flex: 1;
+            margin: 10px;
+            text-align: center;
+        }
+        .section img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background: #d2232a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:hover {
+            background: #ED1B2E;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Climate and Health Vulnerability Form</h1>
+        <img class="logo" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvju8KVWOA26EEHzvXjwEG4OIWNBauaBmvK11oEeaaf8u8j35cUzQplyGPt4Iy22J_Uqk&usqp=CAU" alt="Red Cross Logo">
+    </header>
+    <div class="container">
+        <form action="output.html" method="POST">
+            <div class="form-row">
+                <!-- Climate Hazard Section -->
+                <div class="section">
+                    <h2>Climate Hazard</h2>
+                    <img src="https://iea.imgix.net/5ed9d5d7-affd-40e8-929b-1b0706c19c29/ICONS-FOR-COMMENTARY-1.png?auto=compress%2Cformat&fit=min&q=80&rect=0%2C0%2C1500%2C1500&w=676&fit=crop&fm=jpg&q=70&auto=format&h=676" alt="Climate Hazard Icon">
+                    <select name="climate_hazard" multiple required>
+                        <option value="heatwave">Heatwave</option>
+                        <option value="flood">Flood</option>
+                        <option value="drought">Drought</option>
+                        <option value="storm">Storm</option>
+                        <option value="wildfire">Wildfire</option>
+                        <option value="sea_level_rise">Sea Level Rise</option>
+                        <option value="cold_wave">Cold Wave</option>
+                    </select>
+                </div>
+                
+                <!-- Climate-Sensitive Disease Section -->
+                <div class="section">
+                    <h2>Climate-Sensitive Disease</h2>
+                    <img src="https://researchoutreach.org/wp-content/uploads/2020/09/Florence-Fouque-Fig1.jpg" alt="Climate-Sensitive Disease Icon">
+                    <select name="climate_sensitive_disease" multiple required>
+                        <option value="waterborne">Waterborne Diseases</option>
+                        <option value="vectorborne">Vectorborne Diseases</option>
+                        <option value="cardiovascular">Cardiovascular Diseases</option>
+                        <option value="respiratory">Chronic Respiratory Diseases</option>
+                        <option value="zoonotic">Zoonotic Diseases</option>
+                        <option value="mental_health">Mental Health Effects</option>
+                        <option value="nutritional">Nutritional Disorders</option>
+                    </select>
+                </div>
+
+                <!-- Region Section -->
+                <div class="section">
+                    <h2>Region</h2>
+                    <img src="https://www.worldatlas.com/r/w1300/upload/68/d4/75/continents-map-puwadol-jaturawutthichai.jpg" alt="Regions Icon">
+                    <select name="region" multiple required>
+                        <option value="africa">Africa</option>
+                        <option value="asia">Asia</option>
+                        <option value="europe">Europe</option>
+                        <option value="north_america">North America</option>
+                        <option value="south_america">South America</option>
+                        <option value="oceania">Oceania</option>
+                        <option value="antarctica">Antarctica</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <button type="submit">Submit Form</button>
+        </form>
+    </div>
+</body>
+</html>

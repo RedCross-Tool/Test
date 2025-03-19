@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climate Health Assessment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f4f9;
+            color: #333;
+        }
+        header {
+            text-align: center;
+            padding: 20px;
+            background: #ED1B2E;
+            color: white;
+            position: relative;
+        }
+        .logo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: space-between;
+        }
+        .box {
+            flex: 1 1 calc(33.33% - 20px);
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+        .box img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        .box h3 {
+            background: #ED1B2E;
+            color: white;
+            margin: 0;
+            padding: 10px;
+        }
+        .box .content {
+            padding: 10px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .box .actions {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+        }
+        .box button {
+            background: #ED1B2E;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .box button:hover {
+            background: #C41522;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            text-align: left;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-content h4 {
+            margin-top: 0;
+        }
+        .modal-content p, .modal-content ul {
+            margin: 10px 0;
+        }
+        .modal-content ul {
+            padding-left: 20px;
+            list-style: disc;
+        }
+        .modal-content button {
+            display: block;
+            margin: 20px auto 0;
+            padding: 10px 15px;
+            background: #ED1B2E;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .export-form {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .export-form button {
+            background: #ED1B2E;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+        .export-form button:hover {
+            background: #C41522;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Climate Health Assessment</h1>
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvju8KVWOA26EEHzvXjwEG4OIWNBauaBmvK11oEeaaf8u8j35cUzQplyGPt4Iy22J_Uqk&usqp=CAU" alt="Logo" class="logo">
+    </header>
+    <div class="container">
+        <div class="box">
+            <img src="https://cdn.redcross.ca/prodmedia/crc/azure/volunteer/emergency-responder-cta-thumbnail.jpg?ext=.jpg" alt="Survey">
+            <h3>Survey</h3>
+            <div class="content">
+                <p>This survey, developed by CRC, collects information on the intersection between climate and health, residents' experiences with extreme weather events, and climate-related vulnerabilities.</p>
+                <div class="actions">
+                    <button onclick="showModal('surveyMethodology')">View Methodology</button>
+                    <button onclick="showModal('surveyQuestions')">Review Questions</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZqsyqbp7oJDrumNi_aFGhCx_XkTiTPK_ZHw&s" alt="Key Informant Interview">
+            <h3>Key Informant Interviews</h3>
+            <div class="content">
+                <p>This component gathers expert insights on the impact of climate change on health from various stakeholders and organizations.</p>
+                <div class="actions">
+                    <button onclick="showModal('kiiMethodology')">View Methodology</button>
+                    <button onclick="showModal('kiiQuestions')">Review Questions</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <img src="https://cdn.redcross.ca/prodmedia/crc/img/How-We-Help/Emergencies-and-Disasters-in-Canada/Les-benevoles.jpg" alt="Focus Group Discussion">
+            <h3>Focus Group Discussion</h3>
+            <div class="content">
+                <p>This tool collects diverse views on the effects of climate change on health through structured group discussions.</p>
+                <div class="actions">
+                    <button onclick="showModal('fgdMethodology')">View Methodology</button>
+                    <button onclick="showModal('fgdQuestions')">Review Questions</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <img src="https://cdn.redcross.ca/prodmedia/crc/img/recruitment.jpg" alt="Health Facilities Vulnerability Assessment">
+            <h3>Health Facilities Vulnerability Assessment</h3>
+            <div class="content">
+                <p>This component assesses the vulnerability of health facilities to climate hazards using WHO-identified criteria.</p>
+                <div class="actions">
+                    <button onclick="showModal('hfvaMethodology')">View Methodology</button>
+                    <button onclick="showModal('hfvaQuestions')">Review Checklist</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <img src="https://cdn.redcross.ca/prodmedia/crc/imgfr/Dans-votre-collectivite/Quebec/Website-Flood-2023-QC.jpg" alt="Climate Trends">
+            <h3>Climate Trends</h3>
+            <div class="content">
+                <p>This section outlines key areas to be monitored during data collection to measure and analyze the impacts of climate change.</p>
+                <div class="actions">
+                    <button onclick="showModal('climateTrendsMethodology')">View Methodology</button>
+                    <button onclick="showModal('climateTrendsData')">View Data Types</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <img src="https://cdn.redcross.ca/prodmedia/crc/img/Volunteer/220118VR-VR-Portal-Emergency-Thumbnails-Emergency-Supervisor.jpg?ext=.jpg" alt="Disease per Climate Hazards">
+            <h3>Disease per Climate Hazards</h3>
+            <div class="content">
+                <p>This table categorizes various climate hazards and their associated disease categories, outlining specific indicators to monitor.</p>
+                <div class="actions">
+                    <button onclick="showModal('diseaseHazardsMethodology')">View Methodology</button>
+                    <button onclick="showModal('diseaseHazardsTable')">View Table</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="surveyMethodology" class="modal">
+        <div class="modal-content">
+            <h4>Survey Methodology</h4>
+            <p>Study Design: Community-based, cross-sectional survey.</p>
+            <p>Study Setting: First, choose a district from a certain country, and then focus on a particular region in the selected district.</p>
+            <p>Sample Size: Determine the target population within the chosen area and calculate the sample size using probability proportional to size (PPS) sampling based on the population and the desired level of precision. The formula for calculating the sample size for your survey so that the results are statistically significant is: n=N/(1+N(e^2))</p>
+            <p>where:</p>
+            <ul>
+                <li>n is the sample size</li>
+                <li>N is the population size</li>
+                <li>e is the level of precision (often called the margin of error)</li>
+            </ul>
+            <p>Sampling Technique: Multi-stage random sampling to select participating wards and households.</p>
+            <p>Recruitment: A standard questionnaire is distributed to either the head of the household or to adult residents to collect information on family characteristics, climate change perceptions, and adaptation strategies.</p>
+            <p>Data Analysis: The recommended Data collection tool to be used is the Microsoft forms or KOBO tool, which will be entered into a statistical package or Microsoft Excel and then presented in tables, graphs, and charts.</p>
+            <button onclick="closeModal('surveyMethodology')">Close</button>
+        </div>
+    </div>
+
+    <div id="kiiMethodology" class="modal">
+        <div class="modal-content">
+            <h4>Key Informant Interview Methodology</h4>
+            <p>1. Description:</p>
+            <ul>
+                <li>Conduct X interviews with participants from government/ Community and other organizations to find out the capacity of the health system in addressing climate change.</li>
+                <li>Interviews should be between 45-60 minutes in length.</li>
+                <li>Consent to be recorded from participants during interview.</li>
+            </ul>
+            <p>2. Recruitment:</p>
+            <ul>
+                <li>Purposive sampling based on secondary data collection.</li>
+                <li>Recruitment of stakeholders involved in climate change, including:</li>
+                <ul>
+                    <li>Local government/ Community leaders</li>
+                    <li>Key informants (project officers or managers) in NGOs and INGOs</li>
+                    <li>Local health authorities</li>
+                    <li>Climate change advocates and academics</li>
+                </ul>
+            </ul>
+            <p>3. Data Collection:</p>
+            <ul>
+                <li>Semi-structured interviews to allow in-depth discussions.</li>
+                <li>Translator assistance for interviews when needed.</li>
+            </ul>
+            <p>4. Data Analysis:</p>
+            <ul>
+                <li>The interviews to be done with consent and are to be recorded and then transcribed.</li>
+                <li>The data will be coded and grouped into themes and sub-themes.</li>
+                <li>Internal triangulation to ensure trustworthiness, through collective discussion and refinement of themes by the project team.</li>
+            </ul>
+            <button onclick="closeModal('kiiMethodology')">Close</button>
+        </div>
+    </div>
+
+    <div id="fgdMethodology" class="modal">
+        <div class="modal-content">
+            <h4>Focus Group Discussion Methodology</h4>
+            <p>Purpose:</p>
+            <ul>
+                <li>To gather community insights on climate change threats, vulnerabilities, and response capacities.</li>
+                <li>To understand how climate change impacts health and identify areas for improvement.</li>
+            </ul>
+            <p>Procedure:</p>
+            <ul>
+                <li>The group interviews should be conducted for 90 minutes, and each group should have 6-10 participants.</li>
+                <li>A facilitator to lead the discussion and note takes place to write down ideas provided by participants.</li>
+                <li>The discussions will be audio recorded only if the participants agree to allow the researcher to capture all the information in full. The recordings will remain inaccessible to anyone outside the research team.</li>
+                <li>It is entirely voluntary to participate, and anyone can leave the study at any time without any consequences.</li>
+            </ul>
+            <p>Confidentiality:</p>
+            <ul>
+                <li>Participants' privacy to be observed and all information collected should be used only for the purpose of this study and should be treated with confidentiality.</li>
+                <li>Data should be analyzed anonymously, and no participant will be identified in the results of the study.</li>
+                <li>The study records including consent forms to be kept in a safe place and can only be accessed by the designated authorized staff.</li>
+            </ul>
+            <p>Recruitment:</p>
+            <ul>
+                <li>Purposive/convenience sampling will be used to select participants according to their interest and knowledge of climate change.</li>
+                <li>A screening interview will also be done to establish the eligibility of the participants.</li>
+                <li>The participants should be above X years and should be involved in community health efforts but not in public health or medical professional employment.</li>
+                <li>Attempts will be made to incorporate participants with different levels of climate change awareness.</li>
+            </ul>
+            <p>Data Collection:</p>
+            <ul>
+                <li>Topics include community health, climate change impacts, knowledge gaps and future strategies in relation to climate change and health.</li>
+                <li>In addition, non-verbal responses will also be collected during the discussion to include all the possible participant inputs.</li>
+            </ul>
+            <p>Data Analysis:</p>
+            <ul>
+                <li>The discussions will be recorded and where possible transcribed and translated.</li>
+                <li>To identify key themes and sub-themes, a thematic analysis will be conducted.</li>
+                <li>Triangulation will be internal, where several team members analyze the data independently and then collectively refine the themes for trustworthiness and consistency.</li>
+            </ul>
+            <button onclick="closeModal('fgdMethodology')">Close</button>
+        </div>
+    </div>
+ <div id="hfvaMethodology" class="modal">
+        <div class="modal-content">
+            <h4>Health Facilities Vulnerability Assessment Methodology</h4>
+            <p>This component represents a full-fledged checklist of vulnerability of health facilities as identified by the World Health Organization (WHO). It classifies different climate hazards and their corresponding health impacts then lists the criteria and questions to determine the readiness and robustness of health facilities. This checklist when used by researchers and analysts will help in a more systematic collection of data, and determination of risks and effects of various climate hazards. This is a more systematic way of approaching the vulnerabilities in health facilities and thus leads to better risk management and adaptation decisions.</p>
+            <button onclick="closeModal('hfvaMethodology')">Close</button>
+        </div>
+    </div>
+
+    <div id="climateTrendsMethodology" class="modal">
+        <div class="modal-content">
+            <h4>Climate Trends Methodology</h4>
+            <p>In order to properly measure and analyse the impacts of climate change the following key areas will be monitored during the data collection process.</p>
+            <p>This table provides a systematic approach for identifying the types of data required for analysing trends in climate hazards and their explanations. It helps in identifying the data that needs to be tracked and evaluated for every climate hazard of concern. Using this table, researchers and analysts can consistently obtain the right data to make evaluations of the effects and trends of the various climate hazards. This is a more systematic way of approaching the analysis of the hazards with the aim of having a better understanding of the hazards and their risks and thus being in a better position to mitigate the risks in question in the best way possible as far as climate risk management and adaptation are concerned.</p>
+            <button onclick="closeModal('climateTrendsMethodology')">Close</button>
+        </div>
+    </div>
+
+    <div id="diseaseHazardsMethodology" class="modal">
+        <div class="modal-content">
+            <h4>Disease per Climate Hazards Methodology</h4>
+            <p>This table is a robust toolkit for climate hazard analysis, categorizing various climate hazards and their associated disease categories. It outlines the specific indicators to monitor for each disease category, to help researchers and analysts gather the right data in a systematic way. This table is useful for identifying and assessing the impacts and trends related to different climate hazards, and this structured approach helps us better understand the health implications of climate hazards and better inform risk management and adaptation strategies.</p>
+            <button onclick="closeModal('diseaseHazardsMethodology')">Close</button>
+        </div>
+    </div>
+    <script>
+        function showModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+    </script>
+    <div class="export-form">
+        <button onclick="exportForm()">Export Form</button>
+    </div>
+
+    <script>
+        function showModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function exportForm() {
+            // Add export functionality here
+            alert('Form export functionality to be implemented');
+        }
+    </script>
+</body>
+</html>
