@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Populate Database</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #ED1B2E;
+        }
+        button {
+            background: #ED1B2E;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Database Population Tool</h1>
+    <p>This tool will populate your Firebase database with sample questions for each section.</p>
+    <button id="populateButton">Populate Database</button>
+    <div id="status"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDurfWVGVnIIfbc0plLD5sPp-VPyv8j3SQ",
+            authDomain: "canadian-red-cross-cc-app.firebaseapp.com",
+            projectId: "canadian-red-cross-cc-app",
+            storageBucket: "canadian-red-cross-cc-app.firebasestorage.app",
+            messagingSenderId: "142442090355",
+            appId: "1:142442090355:web:447b25a0487d8ba9f83f06",
+            measurementId: "G-1C3RCZX1NV"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        // Sample questions for each section
+        const sampleQuestions = [
+            // Survey section
+            {
+                question: "What measures have been implemented to manage mosquito breeding sites in your community?",
+                section: "survey",
+                climateHazards: ["flood", "heatwave"],
+                diseases: ["vectorborne"],
+                regions: ["africa", "asia", "south_america"]
+            },
+            {
+                question: "Has your community experienced an increase in respiratory issues during wildfire season?",
+                section: "survey",
+                climateHazards: ["wildfire"],
+                diseases: ["respiratory"],
+                regions: ["north_america"],
+                domestic: ["alberta", "british_columbia"]
+            },
+            {
+                question: "What water purification methods are used in your area during flooding events?",
+                section: "survey",
+                climateHazards: ["flood"],
+                diseases: ["waterborne"],
+                regions: ["asia", "africa", "south_america"]
+            },
+            
+            // KII section
+            {
+                question: "How has your organization adapted its health services to address climate-related health impacts?",
+                section: "kii",
+                climateHazards: ["heatwave", "flood", "wildfire"],
+                diseases: ["cardiovascular", "respiratory", "vectorborne"],
+                regions: ["north_america", "europe"]
+            },
+            {
+                question: "What are the main challenges your community faces in responding to climate-related health emergencies?",
+                section: "kii",
+                climateHazards: ["storm", "flood", "drought"],
+                diseases: ["waterborne", "nutritional"],
+                regions: ["africa", "asia"]
+            },
+            
+            // FGD section
+            {
+                question: "How have changing weather patterns affected the health of vulnerable populations in your community?",
+                section: "fgd",
+                climateHazards: ["heatwave", "drought"],
+                diseases: ["cardiovascular", "nutritional"],
+                regions: ["africa", "asia", "south_america"]
+            },
+            {
+                question: "What traditional knowledge exists in your community about adapting to extreme weather events?",
+                section: "fgd",
+                climateHazards: ["storm", "flood", "drought"],
+                diseases: ["waterborne", "vectorborne"],
+                regions: ["africa", "asia", "oceania"]
+            },
+            
+            // HFVA section
+            {
+                question: "Does your health facility have backup power systems to maintain operations during extreme weather events?",
+                section: "hfva",
+                climateHazards: ["storm", "flood", "heatwave"],
+                diseases: ["all"],
+                regions: ["all"]
+            },
+            {
+                question: "Is your facility's water supply protected from contamination during flooding events?",
+                section: "hfva",
+                climateHazards: ["flood"],
+                diseases: ["waterborne"],
+                regions: ["all"]
+            },
+            
+            // Climate Trends section
+            {
+                question: "What changes in seasonal temperature patterns have been observed in your region over the past decade?",
+                section: "climateTrends",
+                climateHazards: ["heatwave", "cold_wave"],
+                diseases: ["cardiovascular", "respiratory"],
+                regions: ["all"]
+            },
+            {
+                question: "Has your region experienced changes in precipitation patterns, and how have these affected waterborne disease incidence?",
+                section: "climateTrends",
+                climateHazards: ["flood", "drought"],
+                diseases: ["waterborne"],
+                regions: ["all"]
+            },
+            
+            // Disease Hazards section
+            {
+                question: "What vector control measures are in place to address increased mosquito populations during flooding?",
+                section: "diseaseHazards",
+                climateHazards: ["flood"],
+                diseases: ["vectorborne"],
+                regions: ["all"]
+            },
+            {
+                question: "How are heat-related cardiovascular emergencies tracked and monitored during heatwaves?",
+                section: "diseaseHazards",
+                climateHazards: ["heatwave"],
+                diseases: ["cardiovascular"],
+                regions: ["all"]
+            }
+        ];
+        
+        // Add questions to Firestore
+        async function populateDatabase() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<p>Adding questions to database...</p>';
+            
+            try {
+                for (const question of sampleQuestions) {
+                    await db.collection('Survey_').add(question);
+                    statusDiv.innerHTML += `<p>Added: "${question.question.substring(0, 50)}..." to ${question.section} section</p>`;
+                }
+                
+                statusDiv.innerHTML += '<p><strong>Database population complete!</strong></p>';
+            } catch (error) {
+                console.error('Error populating database:', error);
+                statusDiv.innerHTML += `<p>Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Add event listener to button
+        document.getElementById('populateButton').addEventListener('click', populateDatabase);
+    </script>
+</body>
+</html>
