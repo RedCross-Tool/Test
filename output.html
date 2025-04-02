@@ -465,8 +465,9 @@
             <p>Loading questions...</p>
         </div>
         <div id="editQuestionsContainer"></div>
-        <div style="display: flex; justify-content: flex-end;">
-            <button id="saveAllQuestionsBtn" style="background-color: #4CAF50;">Save All Changes</button>
+        <div style="display: flex; justify-content: space-between;">
+            <button id="addNewQuestionBtn" style="background-color: #007BFF;">Add New Question</button>
+            <button id="saveAllQuestionsBtn" style="background-color: #4CAF50;">Save and Exit</button>
         </div>
     </div>
 </div>
@@ -593,68 +594,208 @@ function closeModal(id) {
 // Function to show questions modal for a specific section
 function showQuestionsModal(section) {
     currentSection = section;
-    
+
     // Set up the modal content
     const modalContent = document.querySelector('#questionsModal .modal-content');
-    
+
     // Clear existing content
     modalContent.innerHTML = '';
-    
+
     // Create header with title and X button
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
-    
+
     const titleElement = document.createElement('h4');
     titleElement.id = 'questionsModalTitle';
     titleElement.textContent = getSectionTitle(section) + ' Questions';
     modalHeader.appendChild(titleElement);
-    
+
     const closeBtn = document.createElement('button');
     closeBtn.className = 'close-x';
     closeBtn.innerHTML = '&times;'; // × symbol
-    closeBtn.onclick = function() { closeModal('questionsModal'); };
+    closeBtn.onclick = function () { closeModal('questionsModal'); };
     modalHeader.appendChild(closeBtn);
-    
+
     // Add header to modal
     modalContent.appendChild(modalHeader);
-    
+
     // Create containers for questions and edit forms
     const questionsContainer = document.createElement('div');
     questionsContainer.id = 'questionsContainer';
     questionsContainer.className = 'questions-container';
     questionsContainer.innerHTML = '<p>Loading questions...</p>';
     modalContent.appendChild(questionsContainer);
-    
+
     const editContainer = document.createElement('div');
     editContainer.id = 'editQuestionsContainer';
     modalContent.appendChild(editContainer);
-    
-    // Add save button
+
+    // Add save and add buttons
     const buttonDiv = document.createElement('div');
     buttonDiv.style.display = 'flex';
-    buttonDiv.style.justifyContent = 'flex-end';
-    
+    buttonDiv.style.justifyContent = 'space-between';
+
+    const addNewBtn = document.createElement('button');
+    addNewBtn.id = 'addNewQuestionBtn';
+    addNewBtn.textContent = 'Add New Question';
+    addNewBtn.style.backgroundColor = '#007BFF';
+    addNewBtn.style.color = 'white';
+    addNewBtn.style.border = 'none';
+    addNewBtn.style.padding = '10px 20px';
+    addNewBtn.style.borderRadius = '4px';
+    addNewBtn.style.cursor = 'pointer';
+    addNewBtn.onclick = addNewQuestion;
+
     const saveAllBtn = document.createElement('button');
     saveAllBtn.id = 'saveAllQuestionsBtn';
-    saveAllBtn.textContent = 'Save All Changes';
+    saveAllBtn.textContent = 'Save and Exit';
     saveAllBtn.style.backgroundColor = '#4CAF50';
+    saveAllBtn.style.color = 'white';
+    saveAllBtn.style.border = 'none';
+    saveAllBtn.style.padding = '10px 20px';
+    saveAllBtn.style.borderRadius = '4px';
+    saveAllBtn.style.cursor = 'pointer';
     saveAllBtn.onclick = saveAllChanges;
-    
+
+    buttonDiv.appendChild(addNewBtn);
     buttonDiv.appendChild(saveAllBtn);
     modalContent.appendChild(buttonDiv);
-    
+
     // Show the modal
     showModal('questionsModal');
-    
+
     if (currentSubmissionId) {
-        loadQuestionsForSection(section, currentSubmissionId);
+        // First, check localStorage for saved data
+        const savedData = localStorage.getItem(`questions_${currentSubmissionId}`);
+        if (savedData) {
+            console.log('Loaded questions from localStorage for section:', section);
+            currentSectionQuestions = JSON.parse(savedData);
+            const sectionQuestions = currentSectionQuestions[section] || [];
+            displayAllQuestions(sectionQuestions, section);
+            createEditableQuestions(sectionQuestions, editContainer, section);
+        } else {
+            // If no saved data, fetch from Firebase
+            loadQuestionsForSection(section, currentSubmissionId);
+        }
     } else {
-        document.getElementById('questionsContainer').innerHTML = 
+        document.getElementById('questionsContainer').innerHTML =
             '<p>No submission data found. Please go back to the input form and submit your selections.</p>';
     }
 }
 
+// Function to load questions for a specific section from Firebase
+async function loadQuestionsForSection(section, submissionId) {
+    try {
+        const collectionName = sectionCollections[section] || 'Survey';
+        document.getElementById('questionsContainer').innerHTML = `<p>Loading questions from ${collectionName}...</p>`;
+        console.log(`Attempting to load questions from collection: ${collectionName}`);
 
+        const selectedHazards = currentSubmissionData.climateHazards || [];
+        const selectedDiseases = currentSubmissionData.diseases || [];
+        console.log(`Selected climate hazards: ${selectedHazards.join(', ')}`);
+        console.log(`Selected diseases: ${selectedDiseases.join(', ')}`);
+
+        let questionsSnapshot = await db.collection(collectionName).get();
+        let allQuestions = [];
+        let filteredQuestions = [];
+
+        questionsSnapshot.forEach(doc => {
+            const questionData = { id: doc.id, ...doc.data() };
+            allQuestions.push(questionData);
+
+            let includeBasedOnHazard = false;
+            let includeBasedOnDisease = false;
+
+            if (questionData.climateHazards) {
+                const questionHazard = questionData.climateHazards;
+                if (Array.isArray(questionHazard)) {
+                    includeBasedOnHazard = questionHazard.some(hazard =>
+                        hazard.toLowerCase() === 'all' ||
+                        selectedHazards.some(selectedHazard =>
+                            hazard.toLowerCase().includes(selectedHazard.toLowerCase())
+                        )
+                    );
+                } else if (typeof questionHazard === 'string') {
+                    includeBasedOnHazard =
+                        questionHazard.toLowerCase() === 'all' ||
+                        selectedHazards.some(hazard =>
+                            questionHazard.toLowerCase().includes(hazard.toLowerCase())
+                        );
+                }
+            } else {
+                includeBasedOnHazard = true;
+            }
+
+            if (questionData.diseaseCategory) {
+                const diseaseCategory = questionData.diseaseCategory;
+                if (Array.isArray(diseaseCategory)) {
+                    includeBasedOnDisease = diseaseCategory.some(disease =>
+                        disease.toLowerCase() === 'all' ||
+                        selectedDiseases.some(selectedDisease =>
+                            disease.toLowerCase().includes(selectedDisease.toLowerCase())
+                        )
+                    );
+                } else if (typeof diseaseCategory === 'string') {
+                    includeBasedOnDisease =
+                        diseaseCategory.toLowerCase() === 'all' ||
+                        selectedDiseases.some(selectedDisease =>
+                            diseaseCategory.toLowerCase().includes(selectedDisease.toLowerCase())
+                        );
+                }
+            } else {
+                includeBasedOnDisease = true;
+            }
+
+            if (section === 'diseaseHazards') {
+                if (includeBasedOnHazard && includeBasedOnDisease) {
+                    filteredQuestions.push(questionData);
+                }
+            } else if (includeBasedOnHazard) {
+                filteredQuestions.push(questionData);
+            }
+        });
+
+        console.log(`Loaded ${allQuestions.length} total questions from ${collectionName}`);
+        console.log(`Filtered to ${filteredQuestions.length} questions matching selected hazards/diseases`);
+
+        currentSectionQuestions[section + '_all'] = allQuestions;
+        currentSectionQuestions[section] = filteredQuestions;
+
+        // Save the filtered questions to localStorage for future use
+        localStorage.setItem(`questions_${submissionId}`, JSON.stringify(currentSectionQuestions));
+
+        const container = document.getElementById('questionsContainer');
+        container.innerHTML = '';
+
+        const filterInfo = document.createElement('div');
+        filterInfo.style.backgroundColor = '#f8f9fa';
+        filterInfo.style.padding = '10px';
+        filterInfo.style.marginBottom = '15px';
+        filterInfo.style.borderRadius = '4px';
+        filterInfo.style.border = '1px solid #ddd';
+
+        filterInfo.innerHTML = `
+            <p style="margin: 0 0 10px 0; font-size: 14px;">
+                <strong>Filtered by:</strong><br>
+                Climate Hazards: ${formatArrayForDisplay(selectedHazards)}<br>
+                ${section === 'diseaseHazards' ? `Diseases: ${formatArrayForDisplay(selectedDiseases)}<br>` : ''}
+                <span style="font-style: italic; color: #666;">Showing ${filteredQuestions.length} of ${allQuestions.length} questions</span>
+            </p>
+        `;
+
+        container.appendChild(filterInfo);
+
+        if (filteredQuestions.length === 0) {
+            container.innerHTML += '<p>No questions found matching your selected criteria.</p>';
+            return;
+        }
+
+        displayAllQuestions(filteredQuestions, section);
+    } catch (error) {
+        console.error(`Error loading questions from ${section}:`, error);
+        document.getElementById('questionsContainer').innerHTML = `<p>Error loading questions: ${error.message}</p>`;
+    }
+}
 
         // Function to get section title
         function getSectionTitle(section) {
@@ -783,8 +924,8 @@ async function loadQuestionsForSection(section, submissionId) {
                 } else if (typeof diseaseCategory === 'string') {
                     includeBasedOnDisease =
                         diseaseCategory.toLowerCase() === 'all' ||
-                        selectedDiseases.some(disease =>
-                            diseaseCategory.toLowerCase().includes(disease.toLowerCase())
+                        selectedDiseases.some(selectedDisease =>
+                            diseaseCategory.toLowerCase().includes(selectedDisease.toLowerCase())
                         );
                 }
             } else {
@@ -1422,6 +1563,9 @@ function displayHFVAQuestions(questions, container) {
 
 
 
+
+
+
 function createEditableQuestions(questions, container, section) {
     container.innerHTML = '<h4>Edit Questions:</h4>';
 
@@ -1432,126 +1576,197 @@ function createEditableQuestions(questions, container, section) {
         questionDiv.dataset.index = index;
 
         // Display the question text
-        questionDiv.textContent = item.Question || item.typeOfData || item.diseaseCategory || item.questions || 'Question';
+        const questionTextSpan = document.createElement('span');
+        questionTextSpan.textContent = item.Question || item.typeOfData || item.diseaseCategory || item.questions || 'Question';
+        questionTextSpan.style.cursor = 'pointer'; // Indicate it's clickable
+        questionDiv.appendChild(questionTextSpan);
 
-        // Enable inline editing on click
-        questionDiv.onclick = () => enableInlineEditing(questionDiv, item, index, section);
+        // Attach click event listener to make the question editable
+        questionTextSpan.addEventListener('click', function () {
+            // Create input field for editing
+            const inputField = document.createElement('textarea');
+            inputField.value = item.Question || item.typeOfData || item.diseaseCategory || item.questions || '';
+            inputField.style.width = '100%';
+            inputField.style.minHeight = '60px';
+            inputField.style.marginBottom = '10px';
+            inputField.style.padding = '8px';
+            inputField.style.border = '1px solid #ccc';
+            inputField.style.borderRadius = '4px';
+            inputField.style.resize = 'vertical';
+
+            // Create save and cancel buttons
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = '✓'; // Checkmark
+            saveBtn.className = 'save-btn';
+            saveBtn.style.backgroundColor = '#4CAF50';
+            saveBtn.style.color = 'white';
+            saveBtn.style.border = 'none';
+            saveBtn.style.padding = '5px 10px';
+            saveBtn.style.borderRadius = '4px';
+            saveBtn.style.cursor = 'pointer';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '✕'; // X mark
+            cancelBtn.className = 'cancel-btn';
+            cancelBtn.style.backgroundColor = '#f44336';
+            cancelBtn.style.color = 'white';
+            cancelBtn.style.border = 'none';
+            cancelBtn.style.padding = '5px 10px';
+            cancelBtn.style.borderRadius = '4px';
+            cancelBtn.style.cursor = 'pointer';
+
+            // Replace question text with input and buttons
+            questionDiv.innerHTML = '';
+            questionDiv.appendChild(inputField);
+            questionDiv.appendChild(saveBtn);
+            questionDiv.appendChild(cancelBtn);
+
+            // Save button functionality
+            saveBtn.onclick = function () {
+                const newQuestionText = inputField.value.trim();
+                if (!newQuestionText) {
+                    alert('Question text cannot be empty.');
+                    return;
+                }
+
+                // Update the question in the local array
+                item.Question = newQuestionText;
+
+                // Update the upper table immediately
+                updateUpperTable(section);
+
+                // Restore the display
+                questionTextSpan.textContent = newQuestionText;
+                questionDiv.innerHTML = '';
+                questionDiv.appendChild(questionTextSpan);
+
+                alert('Question updated.');
+            };
+
+            // Cancel button functionality
+            cancelBtn.onclick = function () {
+                questionDiv.innerHTML = '';
+                questionDiv.appendChild(questionTextSpan);
+            };
+        });
 
         container.appendChild(questionDiv);
     });
 }
 
-// Function to enable inline editing
-function enableInlineEditing(questionDiv, item, index, section) {
-    // Replace the text with an input field
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = item.Question || item.typeOfData || item.diseaseCategory || item.questions || '';
-    input.style.width = 'calc(100% - 40px)';
-    input.style.marginRight = '10px';
-    input.style.padding = '5px';
-    input.style.border = '1px solid #ccc';
-    input.style.borderRadius = '4px';
-
-    // Add a save button (tick icon)
-    const saveBtn = document.createElement('button');
-    saveBtn.innerHTML = '&#10003;'; // Tick icon
-    saveBtn.style.backgroundColor = '#4CAF50';
-    saveBtn.style.color = 'white';
-    saveBtn.style.border = 'none';
-    saveBtn.style.padding = '5px 10px';
-    saveBtn.style.borderRadius = '4px';
-    saveBtn.style.cursor = 'pointer';
-
-    // Save the changes on click
-    saveBtn.onclick = function () {
-        const updatedValue = input.value.trim();
-        if (updatedValue) {
-            // Update the local data
-            const sectionQuestions = currentSectionQuestions[section];
-            if (sectionQuestions && sectionQuestions[index]) {
-                sectionQuestions[index].Question = updatedValue;
-            }
-
-            // Replace input with updated text
-            questionDiv.innerHTML = updatedValue;
-            questionDiv.onclick = () => enableInlineEditing(questionDiv, item, index, section);
-
-            alert('Question updated locally');
-        }
-    };
-
-    // Clear the questionDiv and append input and save button
-    questionDiv.innerHTML = '';
-    questionDiv.appendChild(input);
-    questionDiv.appendChild(saveBtn);
+// Function to update the upper table with the latest questions
+function updateUpperTable(section) {
+    const container = document.getElementById('questionsContainer');
+    const questions = currentSectionQuestions[section];
+    displayAllQuestions(questions, section);
 }
 
+// Function to save all changes and persist them locally linked to submissionId
 async function saveAllChanges() {
     try {
-        const promises = [];
         const editableQuestions = document.querySelectorAll('.editable-question');
 
         for (const questionDiv of editableQuestions) {
             const id = questionDiv.dataset.id;
             const index = questionDiv.dataset.index;
-            
+
             // Skip new questions
             if (index === 'new' || !id) continue;
-            
-            // Ensure collectionName is defined
-            const collectionName = sectionCollections[currentSection] || 'Survey';
-            
-            // Create update data object based on section
-            const updateData = {};
-            
-            switch(currentSection) {
-                case 'climateTrends':
-                    updateData.climateHazards = document.getElementById(`hazard-${index}`)?.value.trim() || '';
-                    updateData.typeOfData = document.getElementById(`question-${index}`)?.value.trim() || '';
-                    updateData.description = document.getElementById(`description-${index}`)?.value.trim() || '';
-                    break;
-                    
-                case 'diseaseHazards':
-                    updateData.climateHazards = document.getElementById(`hazard-${index}`)?.value.trim() || '';
-                    updateData.diseaseCategory = document.getElementById(`disease-${index}`)?.value.trim() || '';
-                    updateData.indicatorsToFollow = document.getElementById(`indicators-${index}`)?.value.trim() || '';
-                    break;
-                    
-                case 'fgd':
-                    updateData.climateHazards = document.getElementById(`hazard-${index}`)?.value.trim() || '';
-                    updateData.question = document.getElementById(`question-${index}`)?.value.trim() || '';
-                    updateData.potentialProbes = document.getElementById(`probes-${index}`)?.value.trim() || '';
-                    break;
-                    
-                case 'kii':
-                case 'hfva':
-                case 'survey':
-                default:
-                    updateData.climateHazards = document.getElementById(`hazard-${index}`)?.value.trim() || '';
-                    updateData.question = document.getElementById(`question-${index}`)?.value.trim() || '';
+
+            // Find the input or textarea element to get the updated value
+            const inputElement = questionDiv.querySelector('textarea') || questionDiv.querySelector('input');
+
+            if (!inputElement) {
+                console.warn(`No input element found for question ID: ${id}`);
+                continue; // Skip this question if there's no input element
             }
-            
-            // Update the question in Firestore
-            promises.push(db.collection(collectionName).doc(id).update(updateData));
-            
+
+            const updatedValue = inputElement.value.trim();
+
             // Update local data
             const sectionQuestions = currentSectionQuestions[currentSection];
             if (sectionQuestions && sectionQuestions[index]) {
-                Object.assign(sectionQuestions[index], updateData);
+                sectionQuestions[index].Question = updatedValue;
             }
         }
-        
-        await Promise.all(promises);
-        alert('All changes saved successfully');
-        
-        // Refresh the display
-        displayAllQuestions(currentSectionQuestions[currentSection] || [], currentSection);
+
+        // Persist the updated data in localStorage linked to submissionId
+        if (currentSubmissionId) {
+            localStorage.setItem(`questions_${currentSubmissionId}`, JSON.stringify(currentSectionQuestions));
+        }
+
+        alert('All changes saved.');
+        closeModal('questionsModal'); // Close the modal popup
     } catch (error) {
         console.error('Error saving all changes:', error);
         alert('Error saving changes: ' + error.message);
     }
 }
+
+// Function to add a new question
+function addNewQuestion() {
+    const sectionQuestions = currentSectionQuestions[currentSection] || [];
+    const newQuestion = {
+        id: `new_${Date.now()}`, // Unique ID for the new question
+        Question: 'New Question',
+        climateHazards: 'All',
+        Answer: '',
+        diseaseCategory: 'All'
+    };
+
+    sectionQuestions.push(newQuestion);
+    currentSectionQuestions[currentSection] = sectionQuestions;
+
+    // Update the UI
+    displayAllQuestions(sectionQuestions, currentSection);
+    createEditableQuestions(sectionQuestions, document.getElementById('editQuestionsContainer'), currentSection);
+
+    alert('New question added.');
+}
+
+// Function to load saved data from localStorage based on submissionId
+function loadSavedData(submissionId) {
+    const savedData = localStorage.getItem(`questions_${submissionId}`);
+    if (savedData) {
+        currentSectionQuestions = JSON.parse(savedData);
+        console.log('Loaded saved data:', currentSectionQuestions);
+    } else {
+        console.log('No saved data found for submissionId:', submissionId);
+        currentSectionQuestions = {}; // Reset to avoid overlap
+    }
+}
+
+// Update the initialization to load saved data on page load
+document.addEventListener('DOMContentLoaded', function () {
+    // Check database structure (for debugging)
+    checkDatabaseStructure();
+    
+    // Get submission ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const submissionId = urlParams.get('submissionId');
+    
+    console.log("URL Parameters:", window.location.search);
+    console.log("Submission ID from URL:", submissionId);
+    
+    if (submissionId) {
+        currentSubmissionId = submissionId;
+        console.log("Loading assessment details for ID:", submissionId);
+
+        // Load saved data for the current submissionId
+        loadSavedData(submissionId);
+
+        loadAssessmentDetails(submissionId);
+    } else {
+        document.getElementById('assessmentDetails').innerHTML = 
+            '<p>No submission ID found. Please go back to the input form and submit your selections.</p>';
+    }
+    
+    // Add event listener for save all button
+    document.getElementById('saveAllQuestionsBtn').addEventListener('click', saveAllChanges);
+
+    // Add event listener to the button outside the function
+    document.getElementById('export-excel-btn').addEventListener('click', exportAssessment); 
+});
 
 function exportAssessment() {
     if (!currentSubmissionData) {
@@ -1572,11 +1787,8 @@ function exportAssessment() {
             sectionTitle = sectionTitle.substring(0, 31);
         }
 
-        const filteredQuestions = JSON.parse(sessionStorage.getItem(`${section}_filteredQuestions`)) || [];
-
-        // Debugging: Log filtered questions for each section
-        console.log(`Exporting section: ${section}`);
-        console.log(`Filtered questions for ${section}:`, filteredQuestions);
+        // Use the updated questions from currentSectionQuestions
+        const filteredQuestions = currentSectionQuestions[section] || [];
 
         if (filteredQuestions.length > 0) {
             const worksheet = workbook.addWorksheet(sectionTitle);
@@ -1629,25 +1841,15 @@ function exportAssessment() {
                 column.alignment = { wrapText: true, vertical: 'top' };
             });
 
-            // Helper function to safely extract data, handling different potential keys
-            function extractFieldValue(question, keys) {
-                for (const key of keys) {
-                    if (question.hasOwnProperty(key) && question[key] !== null && question[key] !== undefined) {
-                        return question[key];
-                    }
-                }
-                return '';
-            }
-
             // Add rows for filtered questions
             filteredQuestions.forEach(question => {
                 const row = [];
 
                 if (section === 'hfva') {
                     row.push(question.climateHazards || '');
-                    row.push(extractFieldValue(question, ['Exposures', 'exposures']));
+                    row.push(question.Exposures || question.exposures || '');
                     row.push(question.category || '');
-                    row.push(extractFieldValue(question, ['questions', 'question']));
+                    row.push(question.questions || question.question || '');
                     row.push('\u2610'); // High
                     row.push('\u2610'); // Medium
                     row.push('\u2610'); // Low
@@ -1672,9 +1874,6 @@ function exportAssessment() {
                 }
                 worksheet.addRow(row);
             });
-        } else {
-            // Debugging: Log if no questions are found for the section
-            console.warn(`No filtered questions found for section: ${section}`);
         }
     });
 
@@ -1691,7 +1890,7 @@ function exportAssessment() {
         URL.revokeObjectURL(url);
 
         // Display thank-you message
-        alert("Thank you for using the Canadian Red Cross new Anticipatory Actions for Climate Health Vulnerability tool developed by the Global Health in Emergency Research Team. Best regards, Ahmad Wehbi.");
+        alert("Thank you for using the Canadian Red Cross new Anticipatory Actions for Climate Health Vulnerability toolkit developed by the Global Health in Emergency Research Team. Best regards, Ahmad Wehbi.");
     });
 }
 
@@ -1735,41 +1934,13 @@ console.log('Session storage for diseaseHazards:', sessionStorage.getItem('disea
                             });
                         }
                     } catch (error) {
-                        console.error(`Error checking ${collectionName}:`, error);
+                        console.error(`Error checking ${collectionName}: ${error}`);
                     }
                 }
             } catch (error) {
                 console.error("Error checking database structure:", error);
             }
         }
-
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check database structure (for debugging)
-            checkDatabaseStructure();
-            
-            // Get submission ID from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const submissionId = urlParams.get('submissionId');
-            
-            console.log("URL Parameters:", window.location.search);
-            console.log("Submission ID from URL:", submissionId);
-            
-            if (submissionId) {
-                currentSubmissionId = submissionId;
-                console.log("Loading assessment details for ID:", submissionId);
-                loadAssessmentDetails(submissionId);
-            } else {
-                document.getElementById('assessmentDetails').innerHTML = 
-                    '<p>No submission ID found. Please go back to the input form and submit your selections.</p>';
-            }
-            
-                    // Add event listener for save all button
-            document.getElementById('saveAllQuestionsBtn').addEventListener('click', saveAllChanges);
-
-            // Add event listener to the button outside the function
-            document.getElementById('export-excel-btn').addEventListener('click', exportAssessment); 
-        });
 
         // Function to handle the Generate Solutions button
         function generateSolutions() {
@@ -1905,4 +2076,5 @@ async function testCollections() {
 
 </body>
 </html>
+``` 
 
