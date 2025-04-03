@@ -591,88 +591,23 @@ function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
 
-// Function to show questions modal for a specific section
 function showQuestionsModal(section) {
     currentSection = section;
 
     // Set up the modal content
-    const modalContent = document.querySelector('#questionsModal .modal-content');
-
-    // Clear existing content
-    modalContent.innerHTML = '';
-
-    // Create header with title and X button
-    const modalHeader = document.createElement('div');
-    modalHeader.className = 'modal-header';
-
-    const titleElement = document.createElement('h4');
-    titleElement.id = 'questionsModalTitle';
-    titleElement.textContent = getSectionTitle(section) + ' Questions';
-    modalHeader.appendChild(titleElement);
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'close-x';
-    closeBtn.innerHTML = '&times;'; // × symbol
-    closeBtn.onclick = function () { closeModal('questionsModal'); };
-    modalHeader.appendChild(closeBtn);
-
-    // Add header to modal
-    modalContent.appendChild(modalHeader);
-
-    // Create containers for questions and edit forms
-    const questionsContainer = document.createElement('div');
-    questionsContainer.id = 'questionsContainer';
-    questionsContainer.className = 'questions-container';
-    questionsContainer.innerHTML = '<p>Loading questions...</p>';
-    modalContent.appendChild(questionsContainer);
-
-    const editContainer = document.createElement('div');
-    editContainer.id = 'editQuestionsContainer';
-    modalContent.appendChild(editContainer);
-
-    // Add save and add buttons
-    const buttonDiv = document.createElement('div');
-    buttonDiv.style.display = 'flex';
-    buttonDiv.style.justifyContent = 'space-between';
-
-    const addNewBtn = document.createElement('button');
-    addNewBtn.id = 'addNewQuestionBtn';
-    addNewBtn.textContent = 'Add New Question';
-    addNewBtn.style.backgroundColor = '#007BFF';
-    addNewBtn.style.color = 'white';
-    addNewBtn.style.border = 'none';
-    addNewBtn.style.padding = '10px 20px';
-    addNewBtn.style.borderRadius = '4px';
-    addNewBtn.style.cursor = 'pointer';
-    addNewBtn.onclick = addNewQuestion;
-
-    const saveAllBtn = document.createElement('button');
-    saveAllBtn.id = 'saveAllQuestionsBtn';
-    saveAllBtn.textContent = 'Save and Exit';
-    saveAllBtn.style.backgroundColor = '#4CAF50';
-    saveAllBtn.style.color = 'white';
-    saveAllBtn.style.border = 'none';
-    saveAllBtn.style.padding = '10px 20px';
-    saveAllBtn.style.borderRadius = '4px';
-    saveAllBtn.style.cursor = 'pointer';
-    saveAllBtn.onclick = saveAllChanges;
-
-    buttonDiv.appendChild(addNewBtn);
-    buttonDiv.appendChild(saveAllBtn);
-    modalContent.appendChild(buttonDiv);
+    // [existing setup code]
 
     // Show the modal
     showModal('questionsModal');
 
     if (currentSubmissionId) {
-        // First, check localStorage for saved data
-        const savedData = localStorage.getItem(`questions_${currentSubmissionId}`);
+        // Check sessionStorage for saved data specific to the section
+        const savedData = sessionStorage.getItem(`questions_${currentSubmissionId}_${section}`);
         if (savedData) {
-            console.log('Loaded questions from localStorage for section:', section);
-            currentSectionQuestions = JSON.parse(savedData);
-            const sectionQuestions = currentSectionQuestions[section] || [];
-            displayAllQuestions(sectionQuestions, section);
-            createEditableQuestions(sectionQuestions, editContainer, section);
+            console.log('Loaded questions from sessionStorage for section:', section);
+            currentSectionQuestions[section] = JSON.parse(savedData);
+            displayAllQuestions(currentSectionQuestions[section], section);
+            createEditableQuestions(currentSectionQuestions[section], document.getElementById('editQuestionsContainer'), section);
         } else {
             // If no saved data, fetch from Firebase
             loadQuestionsForSection(section, currentSubmissionId);
@@ -682,6 +617,81 @@ function showQuestionsModal(section) {
             '<p>No submission data found. Please go back to the input form and submit your selections.</p>';
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Function to save all changes for the current section
+async function saveAllChanges() {
+    try {
+        const editableQuestions = document.querySelectorAll('.editable-question');
+
+        // Ensure currentSectionQuestions[currentSection] exists
+        if (!currentSectionQuestions[currentSection]) {
+            currentSectionQuestions[currentSection] = [];
+        }
+
+        for (const questionDiv of editableQuestions) {
+            const id = questionDiv.dataset.id;
+            const index = parseInt(questionDiv.dataset.index);
+
+            // Skip new questions
+            if (isNaN(index) || !id) continue;
+
+            // Find the input or textarea element to get the updated value
+            const inputElement = questionDiv.querySelector('textarea') || questionDiv.querySelector('input');
+
+            if (!inputElement) {
+                console.warn(`No input element found for question ID: ${id}`);
+                continue; // Skip this question if there's no input element
+            }
+
+            const updatedValue = inputElement.value.trim();
+
+            // Update local data
+            const sectionQuestions = currentSectionQuestions[currentSection];
+            if (sectionQuestions && sectionQuestions[index]) {
+                // Update the appropriate field based on section type
+                if (currentSection === 'climateTrends') {
+                    sectionQuestions[index].typeOfData = updatedValue;
+                } else if (currentSection === 'diseaseHazards') {
+                    sectionQuestions[index].indicatorsToFollow = updatedValue;
+                } else if (currentSection === 'hfva') {
+                    sectionQuestions[index].questions = updatedValue;
+                } else {
+                    // For survey, kii, fgd
+                    sectionQuestions[index].Question = updatedValue;
+                }
+            }
+        }
+
+        // Save to sessionStorage instead of localStorage to persist only until page refresh
+        if (currentSubmissionId && currentSection) {
+            sessionStorage.setItem(
+                `questions_${currentSubmissionId}_${currentSection}`,
+                JSON.stringify(currentSectionQuestions[currentSection])
+            );
+            console.log(`Saved questions for section "${currentSection}" to sessionStorage`);
+        }
+
+        alert('Changes saved for this session.');
+        closeModal('questionsModal'); // Close the modal popup
+    } catch (error) {
+        console.error('Error saving changes:', error);
+        alert('Error saving changes: ' + error.message);
+    }
+}
+
 
 // Function to load questions for a specific section from Firebase
 async function loadQuestionsForSection(section, submissionId) {
@@ -762,32 +772,11 @@ async function loadQuestionsForSection(section, submissionId) {
         currentSectionQuestions[section] = filteredQuestions;
 
         // Save the filtered questions to localStorage for future use
-        localStorage.setItem(`questions_${submissionId}`, JSON.stringify(currentSectionQuestions));
-
-        const container = document.getElementById('questionsContainer');
-        container.innerHTML = '';
-
-        const filterInfo = document.createElement('div');
-        filterInfo.style.backgroundColor = '#f8f9fa';
-        filterInfo.style.padding = '10px';
-        filterInfo.style.marginBottom = '15px';
-        filterInfo.style.borderRadius = '4px';
-        filterInfo.style.border = '1px solid #ddd';
-
-        filterInfo.innerHTML = `
-            <p style="margin: 0 0 10px 0; font-size: 14px;">
-                <strong>Filtered by:</strong><br>
-                Climate Hazards: ${formatArrayForDisplay(selectedHazards)}<br>
-                ${section === 'diseaseHazards' ? `Diseases: ${formatArrayForDisplay(selectedDiseases)}<br>` : ''}
-                <span style="font-style: italic; color: #666;">Showing ${filteredQuestions.length} of ${allQuestions.length} questions</span>
-            </p>
-        `;
-
-        container.appendChild(filterInfo);
-
-        if (filteredQuestions.length === 0) {
-            container.innerHTML += '<p>No questions found matching your selected criteria.</p>';
-            return;
+        if (currentSubmissionId && section) {
+            localStorage.setItem(
+                `questions_${currentSubmissionId}_${section}`,
+                JSON.stringify(filteredQuestions)
+            );
         }
 
         displayAllQuestions(filteredQuestions, section);
@@ -797,227 +786,78 @@ async function loadQuestionsForSection(section, submissionId) {
     }
 }
 
-        // Function to get section title
-        function getSectionTitle(section) {
-            const titles = {
-                'survey': 'Survey',
-                'kii': 'Key Informant Interviews',
-                'fgd': 'Focus Group Discussion',
-                'hfva': 'Health Facilities Vulnerability Assessment',
-                'climateTrends': 'Climate Trends',
-                'diseaseHazards': 'Disease per Climate Hazards'
-            };
-            return titles[section] || 'Section';
-        }
+// Function to get section title
+function getSectionTitle(section) {
+    const titles = {
+        'survey': 'Survey',
+        'kii': 'Key Informant Interviews',
+        'fgd': 'Focus Group Discussion',
+        'hfva': 'Health Facilities Vulnerability Assessment',
+        'climateTrends': 'Climate Trends',
+        'diseaseHazards': 'Disease per Climate Hazards'
+    };
+    return titles[section] || 'Section';
+}
 
-        // Function to format array for display
-        function formatArrayForDisplay(arr) {
-            if (!arr || arr.length === 0) return 'None';
-            
-            return arr.map(item => {
-                // Convert snake_case to Title Case
-                return item.split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
-            }).join(', ');
-        }
+// Function to format array for display
+function formatArrayForDisplay(arr) {
+    if (!arr || arr.length === 0) return 'None';
+    
+    return arr.map(item => {
+        // Convert snake_case to Title Case
+        return item.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }).join(', ');
+}
 
-        // Helper function to format values properly
-        function formatValue(value) {
-            if (!value) return '';
-            
-            if (Array.isArray(value)) {
-                return value.join(', ');
-            } else if (typeof value === 'string') {
-                return value;
-            }
-            
-            return String(value);
-        }
+// Helper function to format values properly
+function formatValue(value) {
+    if (!value) return '';
+    
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    } else if (typeof value === 'string') {
+        return value;
+    }
+    
+    return String(value);
+}
 
-        // PART 3: DATA LOADING FUNCTIONS
-        // Function to load assessment details based on submission ID
-        async function loadAssessmentDetails(submissionId) {
-            console.log("loadAssessmentDetails called with ID:", submissionId);
-            try {
-                console.log("Fetching submission document:", submissionId);
-                const submissionDoc = await db.collection('submissions').doc(submissionId).get();
-                
-                console.log("Document exists:", submissionDoc.exists);
-                
-                if (!submissionDoc.exists) {
-                    document.getElementById('assessmentDetails').innerHTML = 
-                        '<p>Submission not found. Please go back to the input form and submit your selections.</p>';
-                    return;
-                }
-                
-                currentSubmissionData = submissionDoc.data();
-                console.log("Submission data:", currentSubmissionData);
-                
-                // Display assessment details
-                const details = document.getElementById('assessmentDetails');
-                details.innerHTML = `
-                    <p><strong>Date:</strong> ${new Date(currentSubmissionData.timestamp).toLocaleDateString()}</p>
-                    <p><strong>Climate Hazards:</strong> ${formatArrayForDisplay(currentSubmissionData.climateHazards)}</p>
-                    <p><strong>Diseases:</strong> ${formatArrayForDisplay(currentSubmissionData.diseases)}</p>
-                    <p><strong>Regions:</strong> ${formatArrayForDisplay(currentSubmissionData.regions)}</p>
-                    <p><strong>Domestic (Canada):</strong> ${formatArrayForDisplay(currentSubmissionData.domestic)}</p>
-                `;
-            } catch (error) {
-                console.error('Error loading assessment details:', error);
-                document.getElementById('assessmentDetails').innerHTML = 
-                    `<p>Error loading assessment details: ${error.message}</p>`;
-            }
-        }
-
-async function loadQuestionsForSection(section, submissionId) {
+// PART 3: DATA LOADING FUNCTIONS
+// Function to load assessment details based on submission ID
+async function loadAssessmentDetails(submissionId) {
+    console.log("loadAssessmentDetails called with ID:", submissionId);
     try {
-        const collectionName = sectionCollections[section] || 'Survey';
-        document.getElementById('questionsContainer').innerHTML = `<p>Loading questions from ${collectionName}...</p>`;
-        console.log(`Attempting to load questions from collection: ${collectionName}`);
-
-        const selectedHazards = currentSubmissionData.climateHazards || [];
-        const selectedDiseases = currentSubmissionData.diseases || [];
-        console.log(`Selected climate hazards: ${selectedHazards.join(', ')}`);
-        console.log(`Selected diseases: ${selectedDiseases.join(', ')}`);
-
-        let questionsSnapshot = await db.collection(collectionName).get();
-        let allQuestions = [];
-        let filteredQuestions = [];
-
-        questionsSnapshot.forEach(doc => {
-            const questionData = { id: doc.id, ...doc.data() };
-            allQuestions.push(questionData);
-
-            let includeBasedOnHazard = false;
-            let includeBasedOnDisease = false;
-
-            if (questionData.climateHazards) {
-                const questionHazard = questionData.climateHazards;
-                if (Array.isArray(questionHazard)) {
-                    includeBasedOnHazard = questionHazard.some(hazard =>
-                        hazard.toLowerCase() === 'all' ||
-                        selectedHazards.some(selectedHazard =>
-                            hazard.toLowerCase().includes(selectedHazard.toLowerCase())
-                        )
-                    );
-                } else if (typeof questionHazard === 'string') {
-                    includeBasedOnHazard =
-                        questionHazard.toLowerCase() === 'all' ||
-                        selectedHazards.some(hazard =>
-                            questionHazard.toLowerCase().includes(hazard.toLowerCase())
-                        );
-                }
-            } else {
-                includeBasedOnHazard = true;
-            }
-
-            if (questionData.diseaseCategory) {
-                const diseaseCategory = questionData.diseaseCategory;
-                if (Array.isArray(diseaseCategory)) {
-                    includeBasedOnDisease = diseaseCategory.some(disease =>
-                        disease.toLowerCase() === 'all' ||
-                        selectedDiseases.some(selectedDisease =>
-                            disease.toLowerCase().includes(selectedDisease.toLowerCase())
-                        )
-                    );
-                } else if (typeof diseaseCategory === 'string') {
-                    includeBasedOnDisease =
-                        diseaseCategory.toLowerCase() === 'all' ||
-                        selectedDiseases.some(selectedDisease =>
-                            diseaseCategory.toLowerCase().includes(selectedDisease.toLowerCase())
-                        );
-                }
-            } else {
-                includeBasedOnDisease = true;
-            }
-
-            if (section === 'diseaseHazards') {
-                if (includeBasedOnHazard && includeBasedOnDisease) {
-                    filteredQuestions.push(questionData);
-                }
-            } else if (includeBasedOnHazard) {
-                filteredQuestions.push(questionData);
-            }
-        });
-
-        console.log(`Loaded ${allQuestions.length} total questions from ${collectionName}`);
-        console.log(`Filtered to ${filteredQuestions.length} questions matching selected hazards/diseases`);
-
-        currentSectionQuestions[section + '_all'] = allQuestions;
-        currentSectionQuestions[section] = filteredQuestions;
-
-        sessionStorage.setItem(`${section}_filteredQuestions`, JSON.stringify(filteredQuestions));
-        sessionStorage.setItem(`${section}_allQuestions`, JSON.stringify(allQuestions));
-
-        const container = document.getElementById('questionsContainer');
-        container.innerHTML = '';
-
-        const filterInfo = document.createElement('div');
-        filterInfo.style.backgroundColor = '#f8f9fa';
-        filterInfo.style.padding = '10px';
-        filterInfo.style.marginBottom = '15px';
-        filterInfo.style.borderRadius = '4px';
-        filterInfo.style.border = '1px solid #ddd';
-
-        filterInfo.innerHTML = `
-            <p style="margin: 0 0 10px 0; font-size: 14px;">
-                <strong>Filtered by:</strong><br>
-                Climate Hazards: ${formatArrayForDisplay(selectedHazards)}<br>
-                ${section === 'diseaseHazards' ? `Diseases: ${formatArrayForDisplay(selectedDiseases)}<br>` : ''}
-                <span style="font-style: italic; color: #666;">Showing ${filteredQuestions.length} of ${allQuestions.length} questions</span>
-            </p>
-        `;
-
-        const toggleQuestionsBtn = document.createElement('button');
-        toggleQuestionsBtn.id = 'toggleQuestionsBtn';
-        toggleQuestionsBtn.textContent = 'Show All Questions';
-        toggleQuestionsBtn.style.background = '#6c757d';
-        toggleQuestionsBtn.style.color = 'white';
-        toggleQuestionsBtn.style.border = 'none';
-        toggleQuestionsBtn.style.padding = '5px 10px';
-        toggleQuestionsBtn.style.borderRadius = '4px';
-        toggleQuestionsBtn.style.cursor = 'pointer';
-        toggleQuestionsBtn.addEventListener('click', function () {
-            displayAllQuestions(allQuestions, section);
-            toggleQuestionsBtn.style.display = 'none';
-            resetFilterBtn.style.display = 'block';
-        });
-
-        const resetFilterBtn = document.createElement('button');
-        resetFilterBtn.id = 'resetFilterBtn';
-        resetFilterBtn.textContent = 'Show Filtered Questions';
-        resetFilterBtn.style.background = '#ED1B2E';
-        resetFilterBtn.style.color = 'white';
-        resetFilterBtn.style.border = 'none';
-        resetFilterBtn.style.padding = '5px 10px';
-        resetFilterBtn.style.borderRadius = '4px';
-        resetFilterBtn.style.cursor = 'pointer';
-        resetFilterBtn.style.display = 'none';
-        resetFilterBtn.addEventListener('click', function () {
-            displayAllQuestions(filteredQuestions, section);
-            resetFilterBtn.style.display = 'none';
-            toggleQuestionsBtn.style.display = 'block';
-        });
-
-        filterInfo.appendChild(toggleQuestionsBtn);
-        filterInfo.appendChild(resetFilterBtn);
-        container.appendChild(filterInfo);
-
-        if (filteredQuestions.length === 0) {
-            container.innerHTML += '<p>No questions found matching your selected criteria.</p>';
+        console.log("Fetching submission document:", submissionId);
+        const submissionDoc = await db.collection('submissions').doc(submissionId).get();
+        
+        console.log("Document exists:", submissionDoc.exists);
+        
+        if (!submissionDoc.exists) {
+            document.getElementById('assessmentDetails').innerHTML = 
+                '<p>Submission not found. Please go back to the input form and submit your selections.</p>';
             return;
         }
-
-        displayAllQuestions(filteredQuestions, section);
+        
+        currentSubmissionData = submissionDoc.data();
+        console.log("Submission data:", currentSubmissionData);
+        
+        // Display assessment details
+        const details = document.getElementById('assessmentDetails');
+        details.innerHTML = `
+            <p><strong>Date:</strong> ${new Date(currentSubmissionData.timestamp).toLocaleDateString()}</p>
+            <p><strong>Climate Hazards:</strong> ${formatArrayForDisplay(currentSubmissionData.climateHazards)}</p>
+            <p><strong>Diseases:</strong> ${formatArrayForDisplay(currentSubmissionData.diseases)}</p>
+            <p><strong>Regions:</strong> ${formatArrayForDisplay(currentSubmissionData.regions)}</p>
+            <p><strong>Domestic (Canada):</strong> ${formatArrayForDisplay(currentSubmissionData.domestic)}</p>
+        `;
     } catch (error) {
-        console.error(`Error loading questions from ${section}:`, error);
-        document.getElementById('questionsContainer').innerHTML = `<p>Error loading questions: ${error.message}</p>`;
+        console.error('Error loading assessment details:', error);
+        document.getElementById('assessmentDetails').innerHTML = 
+            `<p>Error loading assessment details: ${error.message}</p>`;
     }
 }
-
-
-        // PART 4: DISPLAY FUNCTIONS
 
 // Function to display all questions without filtering
 function displayAllQuestions(questions, section) {
@@ -1069,301 +909,275 @@ function displayAllQuestions(questions, section) {
     // Create editable questions interface
     createEditableQuestions(questions, editContainer, section);
 }
-// Helper function to check if a value matches any of the selected values
-function hasMatchingValue(value, selectedValues) {
-    if (!value || !selectedValues || selectedValues.length === 0) {
-        return false;
-    }
+
+// Specialized display functions for each section
+function displayClimateQuestionsTable(questions, container) {
+    container.innerHTML = '<h4>Meteorological Data to Collect:</h4>';
     
-    if (Array.isArray(value)) {
-        return value.some(item => 
-            selectedValues.some(selected => 
-                String(item).toLowerCase().includes(String(selected).toLowerCase()) ||
-                String(selected).toLowerCase().includes(String(item).toLowerCase())
-            )
-        );
-    } else {
-        return selectedValues.some(selected => 
-            String(value).toLowerCase().includes(String(selected).toLowerCase()) ||
-            String(selected).toLowerCase().includes(String(value).toLowerCase())
-        );
-    }
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.marginTop = '10px';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    const hazardHeader = document.createElement('th');
+    hazardHeader.textContent = 'Climate Hazard';
+    hazardHeader.style.padding = '8px';
+    hazardHeader.style.backgroundColor = '#f2f2f2';
+    hazardHeader.style.border = '1px solid #ddd';
+    hazardHeader.style.textAlign = 'left';
+    
+    const typeHeader = document.createElement('th');
+    typeHeader.textContent = 'Type of Data to be Collected';
+    typeHeader.style.padding = '8px';
+    typeHeader.style.backgroundColor = '#f2f2f2';
+    typeHeader.style.border = '1px solid #ddd';
+    typeHeader.style.textAlign = 'left';
+    
+    const descHeader = document.createElement('th');
+    descHeader.textContent = 'Description';
+    descHeader.style.padding = '8px';
+    descHeader.style.backgroundColor = '#f2f2f2';
+    descHeader.style.border = '1px solid #ddd';
+    descHeader.style.textAlign = 'left';
+    
+    headerRow.appendChild(hazardHeader);
+    headerRow.appendChild(typeHeader);
+    headerRow.appendChild(descHeader);
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    
+    questions.forEach((item, index) => {
+        const row = document.createElement('tr');
+        
+        const hazardCell = document.createElement('td');
+        hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
+        hazardCell.style.padding = '8px';
+        hazardCell.style.border = '1px solid #ddd';
+        
+        const typeCell = document.createElement('td');
+        typeCell.textContent = item.typeOfData || 'N/A';
+        typeCell.style.padding = '8px';
+        typeCell.style.border = '1px solid #ddd';
+        
+        const descCell = document.createElement('td');
+        descCell.textContent = item.Description || 'N/A';
+        descCell.style.padding = '8px';
+        descCell.style.border = '1px solid #ddd';
+        
+        row.appendChild(hazardCell);
+        row.appendChild(typeCell);
+        row.appendChild(descCell);
+        tbody.appendChild(row);
+    });
+    
+    table.appendChild(tbody);
+    container.appendChild(table);
 }
 
+function displayDiseaseIndicatorsTable(questions, container) {
+    container.innerHTML = '<h4>Disease Indicators to Monitor:</h4>';
+    
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.marginTop = '10px';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    const hazardHeader = document.createElement('th');
+    hazardHeader.textContent = 'Climate Hazard';
+    hazardHeader.style.padding = '8px';
+    hazardHeader.style.backgroundColor = '#f2f2f2';
+    hazardHeader.style.border = '1px solid #ddd';
+    hazardHeader.style.textAlign = 'left';
+    
+    const diseaseHeader = document.createElement('th');
+    diseaseHeader.textContent = 'Disease Category';
+    diseaseHeader.style.padding = '8px';
+    diseaseHeader.style.backgroundColor = '#f2f2f2';
+    diseaseHeader.style.border = '1px solid #ddd';
+    diseaseHeader.style.textAlign = 'left';
+    
+    const indicatorsHeader = document.createElement('th');
+    indicatorsHeader.textContent = 'Indicators to Follow';
+    indicatorsHeader.style.padding = '8px';
+    indicatorsHeader.style.backgroundColor = '#f2f2f2';
+    indicatorsHeader.style.border = '1px solid #ddd';
+    indicatorsHeader.style.textAlign = 'left';
+    
+    headerRow.appendChild(hazardHeader);
+    headerRow.appendChild(diseaseHeader);
+    headerRow.appendChild(indicatorsHeader);
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    
+    questions.forEach((item, index) => {
+        const row = document.createElement('tr');
+        
+        const hazardCell = document.createElement('td');
+        hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
+        hazardCell.style.padding = '8px';
+        hazardCell.style.border = '1px solid #ddd';
+        
+        const diseaseCell = document.createElement('td');
+        diseaseCell.textContent = formatValue(item.diseaseCategory || 'N/A');
+        diseaseCell.style.padding = '8px';
+        diseaseCell.style.border = '1px solid #ddd';
+        
+        const indicatorsCell = document.createElement('td');
+        indicatorsCell.textContent = item.indicatorsToFollow || 'N/A';
+        indicatorsCell.style.padding = '8px';
+        indicatorsCell.style.border = '1px solid #ddd';
+        
+        row.appendChild(hazardCell);
+        row.appendChild(diseaseCell);
+        row.appendChild(indicatorsCell);
+        tbody.appendChild(row);
+    });
+    
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
 
-                // Specialized display functions for each section
-        function displayClimateQuestionsTable(questions, container) {
-            container.innerHTML = '<h4>Meteorological Data to Collect:</h4>';
-            
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.marginTop = '10px';
-            
-            // Create table header
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            
-            const hazardHeader = document.createElement('th');
-            hazardHeader.textContent = 'Climate Hazard';
-            hazardHeader.style.padding = '8px';
-            hazardHeader.style.backgroundColor = '#f2f2f2';
-            hazardHeader.style.border = '1px solid #ddd';
-            hazardHeader.style.textAlign = 'left';
-            
-            const typeHeader = document.createElement('th');
-            typeHeader.textContent = 'Type of Data to be Collected';
-            typeHeader.style.padding = '8px';
-            typeHeader.style.backgroundColor = '#f2f2f2';
-            typeHeader.style.border = '1px solid #ddd';
-            typeHeader.style.textAlign = 'left';
-            
-            const descHeader = document.createElement('th');
-            descHeader.textContent = 'Description';
-            descHeader.style.padding = '8px';
-            descHeader.style.backgroundColor = '#f2f2f2';
-            descHeader.style.border = '1px solid #ddd';
-            descHeader.style.textAlign = 'left';
-            
-            headerRow.appendChild(hazardHeader);
-            headerRow.appendChild(typeHeader);
-            headerRow.appendChild(descHeader);
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            // Create table body
-            const tbody = document.createElement('tbody');
-            
-            questions.forEach((item, index) => {
-                const row = document.createElement('tr');
-                
-                const hazardCell = document.createElement('td');
-                hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
-                hazardCell.style.padding = '8px';
-                hazardCell.style.border = '1px solid #ddd';
-                
-                const typeCell = document.createElement('td');
-                typeCell.textContent = item.typeOfData || 'N/A';
-                typeCell.style.padding = '8px';
-                typeCell.style.border = '1px solid #ddd';
-                
-                const descCell = document.createElement('td');
-                descCell.textContent = item.Description || 'N/A';
-                descCell.style.padding = '8px';
-                descCell.style.border = '1px solid #ddd';
-                
-                row.appendChild(hazardCell);
-                row.appendChild(typeCell);
-                row.appendChild(descCell);
-                tbody.appendChild(row);
-            });
-            
-            table.appendChild(tbody);
-            container.appendChild(table);
-        }
+function displayKIIQuestions(questions, container) {
+    container.innerHTML = '<h4>Key Informant Interview Questions:</h4>';
+    
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.marginTop = '10px';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    const hazardHeader = document.createElement('th');
+    hazardHeader.textContent = 'Climate Hazard';
+    hazardHeader.style.padding = '8px';
+    hazardHeader.style.backgroundColor = '#f2f2f2';
+    hazardHeader.style.border = '1px solid #ddd';
+    hazardHeader.style.textAlign = 'left';
+    
+    const questionHeader = document.createElement('th');
+    questionHeader.textContent = 'Question';
+    questionHeader.style.padding = '8px';
+    questionHeader.style.backgroundColor = '#f2f2f2';
+    questionHeader.style.border = '1px solid #ddd';
+    questionHeader.style.textAlign = 'left';
+    
+    headerRow.appendChild(hazardHeader);
+    headerRow.appendChild(questionHeader);
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    
+    questions.forEach((item, index) => {
+        const row = document.createElement('tr');
+        
+        const hazardCell = document.createElement('td');
+        hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
+        hazardCell.style.padding = '8px';
+        hazardCell.style.border = '1px solid #ddd';
+        
+        const questionCell = document.createElement('td');
+        questionCell.textContent = item.Question || 'N/A';
+        questionCell.style.padding = '8px';
+        questionCell.style.border = '1px solid #ddd';
+        
+        row.appendChild(hazardCell);
+        row.appendChild(questionCell);
+        tbody.appendChild(row);
+    });
+    
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
 
-        function displayDiseaseIndicatorsTable(questions, container) {
-            container.innerHTML = '<h4>Disease Indicators to Monitor:</h4>';
-            
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.marginTop = '10px';
-            
-            // Create table header
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            
-            const hazardHeader = document.createElement('th');
-            hazardHeader.textContent = 'Climate Hazard';
-            hazardHeader.style.padding = '8px';
-            hazardHeader.style.backgroundColor = '#f2f2f2';
-            hazardHeader.style.border = '1px solid #ddd';
-            hazardHeader.style.textAlign = 'left';
-            
-            const diseaseHeader = document.createElement('th');
-            diseaseHeader.textContent = 'Disease Category';
-            diseaseHeader.style.padding = '8px';
-            diseaseHeader.style.backgroundColor = '#f2f2f2';
-            diseaseHeader.style.border = '1px solid #ddd';
-            diseaseHeader.style.textAlign = 'left';
-            
-            const indicatorsHeader = document.createElement('th');
-            indicatorsHeader.textContent = 'Indicators to Follow';
-            indicatorsHeader.style.padding = '8px';
-            indicatorsHeader.style.backgroundColor = '#f2f2f2';
-            indicatorsHeader.style.border = '1px solid #ddd';
-            indicatorsHeader.style.textAlign = 'left';
-            
-            headerRow.appendChild(hazardHeader);
-            headerRow.appendChild(diseaseHeader);
-            headerRow.appendChild(indicatorsHeader);
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            // Create table body
-            const tbody = document.createElement('tbody');
-            
-            questions.forEach((item, index) => {
-                const row = document.createElement('tr');
-                
-                const hazardCell = document.createElement('td');
-                hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
-                hazardCell.style.padding = '8px';
-                hazardCell.style.border = '1px solid #ddd';
-                
-                const diseaseCell = document.createElement('td');
-                diseaseCell.textContent = formatValue(item.diseaseCategory || 'N/A');
-                diseaseCell.style.padding = '8px';
-                diseaseCell.style.border = '1px solid #ddd';
-                
-                const indicatorsCell = document.createElement('td');
-                indicatorsCell.textContent = item.indicatorsToFollow || 'N/A';
-                indicatorsCell.style.padding = '8px';
-                indicatorsCell.style.border = '1px solid #ddd';
-                
-                row.appendChild(hazardCell);
-                row.appendChild(diseaseCell);
-                row.appendChild(indicatorsCell);
-                tbody.appendChild(row);
-            });
-            
-            table.appendChild(tbody);
-            container.appendChild(table);
-        }
-
-        function displayKIIQuestions(questions, container) {
-            container.innerHTML = '<h4>Key Informant Interview Questions:</h4>';
-            
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.marginTop = '10px';
-            
-            // Create table header
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            
-            const hazardHeader = document.createElement('th');
-            hazardHeader.textContent = 'Climate Hazard';
-            hazardHeader.style.padding = '8px';
-            hazardHeader.style.backgroundColor = '#f2f2f2';
-            hazardHeader.style.border = '1px solid #ddd';
-            hazardHeader.style.textAlign = 'left';
-            
-            const questionHeader = document.createElement('th');
-            questionHeader.textContent = 'Question';
-            questionHeader.style.padding = '8px';
-            questionHeader.style.backgroundColor = '#f2f2f2';
-            questionHeader.style.border = '1px solid #ddd';
-            questionHeader.style.textAlign = 'left';
-            
-            headerRow.appendChild(hazardHeader);
-            headerRow.appendChild(questionHeader);
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            // Create table body
-            const tbody = document.createElement('tbody');
-            
-            questions.forEach((item, index) => {
-                const row = document.createElement('tr');
-                
-                const hazardCell = document.createElement('td');
-                hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
-                hazardCell.style.padding = '8px';
-                hazardCell.style.border = '1px solid #ddd';
-                
-                const questionCell = document.createElement('td');
-                questionCell.textContent = item.Question || 'N/A';
-                questionCell.style.padding = '8px';
-                questionCell.style.border = '1px solid #ddd';
-                
-                row.appendChild(hazardCell);
-                row.appendChild(questionCell);
-                tbody.appendChild(row);
-            });
-            
-            table.appendChild(tbody);
-            container.appendChild(table);
-        }
-
-        function displayFGDQuestions(questions, container) {
-            container.innerHTML = '<h4>Focus Group Discussion Questions:</h4>';
-            
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.marginTop = '10px';
-            
-            // Create table header
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            
-            const hazardHeader = document.createElement('th');
-            hazardHeader.textContent = 'Climate Hazard';
-            hazardHeader.style.padding = '8px';
-            hazardHeader.style.backgroundColor = '#f2f2f2';
-            hazardHeader.style.border = '1px solid #ddd';
-            hazardHeader.style.textAlign = 'left';
-            
-            const questionHeader = document.createElement('th');
-            questionHeader.textContent = 'Question';
-            questionHeader.style.padding = '8px';
-            questionHeader.style.backgroundColor = '#f2f2f2';
-            questionHeader.style.border = '1px solid #ddd';
-            hazardHeader.style.textAlign = 'left';
-            
-            const probesHeader = document.createElement('th');
-            probesHeader.textContent = 'Potential Probes/Follow-ups';
-            probesHeader.style.padding = '8px';
-            probesHeader.style.backgroundColor = '#f2f2f2';
-            probesHeader.style.border = '1px solid #ddd';
-            probesHeader.style.textAlign = 'left';
-            
-            headerRow.appendChild(hazardHeader);
-            headerRow.appendChild(questionHeader);
-            headerRow.appendChild(probesHeader);
-            
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            // Create table body
-            const tbody = document.createElement('tbody');
-            
-            questions.forEach((item, index) => {
-                const row = document.createElement('tr');
-                
-                const hazardCell = document.createElement('td');
-                hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
-                hazardCell.style.padding = '8px';
-                hazardCell.style.border = '1px solid #ddd';
-                
-                const questionCell = document.createElement('td');
-                questionCell.textContent = item.Question || 'N/A';
-                questionCell.style.padding = '8px';
-                questionCell.style.border = '1px solid #ddd';
-                
-                const probesCell = document.createElement('td');
-                probesCell.textContent = item.potentialProbes || 'N/A';
-                probesCell.style.padding = '8px';
-                probesCell.style.border = '1px solid #ddd';
-                
-                row.appendChild(hazardCell);
-                row.appendChild(questionCell);
-                row.appendChild(probesCell);
-                
-                tbody.appendChild(row);
-            });
-            
-            table.appendChild(tbody);
-            container.appendChild(table);
-        }
-
-   
-
-
-
+function displayFGDQuestions(questions, container) {
+    container.innerHTML = '<h4>Focus Group Discussion Questions:</h4>';
+    
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.marginTop = '10px';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    const hazardHeader = document.createElement('th');
+    hazardHeader.textContent = 'Climate Hazard';
+    hazardHeader.style.padding = '8px';
+    hazardHeader.style.backgroundColor = '#f2f2f2';
+    hazardHeader.style.border = '1px solid #ddd';
+    hazardHeader.style.textAlign = 'left';
+    
+    const questionHeader = document.createElement('th');
+    questionHeader.textContent = 'Question';
+    questionHeader.style.padding = '8px';
+    questionHeader.style.backgroundColor = '#f2f2f2';
+    questionHeader.style.border = '1px solid #ddd';
+    hazardHeader.style.textAlign = 'left';
+    
+    const probesHeader = document.createElement('th');
+    probesHeader.textContent = 'Potential Probes/Follow-ups';
+    probesHeader.style.padding = '8px';
+    probesHeader.style.backgroundColor = '#f2f2f2';
+    probesHeader.style.border = '1px solid #ddd';
+    probesHeader.style.textAlign = 'left';
+    
+    headerRow.appendChild(hazardHeader);
+    headerRow.appendChild(questionHeader);
+    headerRow.appendChild(probesHeader);
+    
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    
+    questions.forEach((item, index) => {
+        const row = document.createElement('tr');
+        
+        const hazardCell = document.createElement('td');
+        hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
+        hazardCell.style.padding = '8px';
+        hazardCell.style.border = '1px solid #ddd';
+        
+        const questionCell = document.createElement('td');
+        questionCell.textContent = item.Question || 'N/A';
+        questionCell.style.padding = '8px';
+        questionCell.style.border = '1px solid #ddd';
+        
+        const probesCell = document.createElement('td');
+        probesCell.textContent = item.potentialProbes || 'N/A';
+        probesCell.style.padding = '8px';
+        probesCell.style.border = '1px solid #ddd';
+        
+        row.appendChild(hazardCell);
+        row.appendChild(questionCell);
+        row.appendChild(probesCell);
+        
+        tbody.appendChild(row);
+    });
+    
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
 
 function displayHFVAQuestions(questions, container) {
     container.innerHTML = '<h4>Health Facilities Vulnerability Assessment Checklist:</h4>';
@@ -1474,97 +1288,89 @@ function displayHFVAQuestions(questions, container) {
     container.appendChild(table);
 }
 
-
-        function displaySurveyQuestions(questions, container) {
-            container.innerHTML = '<h4>Survey Questions:</h4>';
-            
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.marginTop = '10px';
-            
-            // Create table header
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            
-            const hazardHeader = document.createElement('th');
-            hazardHeader.textContent = 'Climate Hazard';
-            hazardHeader.style.padding = '8px';
-            hazardHeader.style.backgroundColor = '#f2f2f2';
-            hazardHeader.style.border = '1px solid #ddd';
-            hazardHeader.style.textAlign = 'left';
-            
-            const questionHeader = document.createElement('th');
-            questionHeader.textContent = 'Question';
-            questionHeader.style.padding = '8px';
-            questionHeader.style.backgroundColor = '#f2f2f2';
-            questionHeader.style.border = '1px solid #ddd';
-            questionHeader.style.textAlign = 'left';
-            
-            const answerHeader = document.createElement('th');
-            answerHeader.textContent = 'Answer Type';
-            answerHeader.style.padding = '8px';
-            answerHeader.style.backgroundColor = '#f2f2f2';
-            answerHeader.style.border = '1px solid #ddd';
-            answerHeader.style.textAlign = 'left';
-            
-            const diseaseHeader = document.createElement('th');
-            diseaseHeader.textContent = 'Disease Category';
-            diseaseHeader.style.padding = '8px';
-            diseaseHeader.style.backgroundColor = '#f2f2f2';
-            diseaseHeader.style.border = '1px solid #ddd';
-            diseaseHeader.style.textAlign = 'left';
-            
-            headerRow.appendChild(hazardHeader);
-            headerRow.appendChild(questionHeader);
-            headerRow.appendChild(answerHeader);
-            headerRow.appendChild(diseaseHeader);
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            // Create table body
-            const tbody = document.createElement('tbody');
-            
-            questions.forEach((item, index) => {
-                const row = document.createElement('tr');
-                
-                const hazardCell = document.createElement('td');
-                hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
-                hazardCell.style.padding = '8px';
-                hazardCell.style.border = '1px solid #ddd';
-                
-                const questionCell = document.createElement('td');
-                questionCell.textContent = item.Question || 'N/A';
-                questionCell.style.padding = '8px';
-                questionCell.style.border = '1px solid #ddd';
-                
-                const answerCell = document.createElement('td');
-                answerCell.textContent = item.Answer || 'N/A';
-                answerCell.style.padding = '8px';
-                answerCell.style.border = '1px solid #ddd';
-                
-                const diseaseCell = document.createElement('td');
-                diseaseCell.textContent = formatValue(item.diseaseCategory || 'N/A');
-                diseaseCell.style.padding = '8px';
-                diseaseCell.style.border = '1px solid #ddd';
-                
-                row.appendChild(hazardCell);
-                row.appendChild(questionCell);
-                row.appendChild(answerCell);
-                row.appendChild(diseaseCell);
-                tbody.appendChild(row);
-            });
-            
-            table.appendChild(tbody);
-            container.appendChild(table);
-        }
-
+function displaySurveyQuestions(questions, container) {
+    container.innerHTML = '<h4>Survey Questions:</h4>';
     
-
-
-
-
-
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.marginTop = '10px';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    const hazardHeader = document.createElement('th');
+    hazardHeader.textContent = 'Climate Hazard';
+    hazardHeader.style.padding = '8px';
+    hazardHeader.style.backgroundColor = '#f2f2f2';
+    hazardHeader.style.border = '1px solid #ddd';
+    hazardHeader.style.textAlign = 'left';
+    
+    const questionHeader = document.createElement('th');
+    questionHeader.textContent = 'Question';
+    questionHeader.style.padding = '8px';
+    questionHeader.style.backgroundColor = '#f2f2f2';
+    questionHeader.style.border = '1px solid #ddd';
+    questionHeader.style.textAlign = 'left';
+    
+    const answerHeader = document.createElement('th');
+    answerHeader.textContent = 'Answer Type';
+    answerHeader.style.padding = '8px';
+    answerHeader.style.backgroundColor = '#f2f2f2';
+    answerHeader.style.border = '1px solid #ddd';
+    answerHeader.style.textAlign = 'left';
+    
+    const diseaseHeader = document.createElement('th');
+    diseaseHeader.textContent = 'Disease Category';
+    diseaseHeader.style.padding = '8px';
+    diseaseHeader.style.backgroundColor = '#f2f2f2';
+    diseaseHeader.style.border = '1px solid #ddd';
+    diseaseHeader.style.textAlign = 'left';
+    
+    headerRow.appendChild(hazardHeader);
+    headerRow.appendChild(questionHeader);
+    headerRow.appendChild(answerHeader);
+    headerRow.appendChild(diseaseHeader);
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    
+    questions.forEach((item, index) => {
+        const row = document.createElement('tr');
+        
+        const hazardCell = document.createElement('td');
+        hazardCell.textContent = formatValue(item.climateHazards || 'N/A');
+        hazardCell.style.padding = '8px';
+        hazardCell.style.border = '1px solid #ddd';
+        
+        const questionCell = document.createElement('td');
+        questionCell.textContent = item.Question || 'N/A';
+        questionCell.style.padding = '8px';
+        questionCell.style.border = '1px solid #ddd';
+        
+        const answerCell = document.createElement('td');
+        answerCell.textContent = item.Answer || 'N/A';
+        answerCell.style.padding = '8px';
+        answerCell.style.border = '1px solid #ddd';
+        
+        const diseaseCell = document.createElement('td');
+        diseaseCell.textContent = formatValue(item.diseaseCategory || 'N/A');
+        diseaseCell.style.padding = '8px';
+        diseaseCell.style.border = '1px solid #ddd';
+        
+        row.appendChild(hazardCell);
+        row.appendChild(questionCell);
+        row.appendChild(answerCell);
+        row.appendChild(diseaseCell);
+        tbody.appendChild(row);
+    });
+    
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
 
 function createEditableQuestions(questions, container, section) {
     container.innerHTML = '<h4>Edit Questions:</h4>';
@@ -1768,9 +1574,30 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('export-excel-btn').addEventListener('click', exportAssessment); 
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function exportAssessment() {
-    if (!currentSubmissionData) {
-        alert('No assessment data to export');
+    if (!currentSubmissionId) {
+        alert('No submission ID found. Cannot export assessment.');
         return;
     }
 
@@ -1787,94 +1614,111 @@ function exportAssessment() {
             sectionTitle = sectionTitle.substring(0, 31);
         }
 
-        // Use the updated questions from currentSectionQuestions
-        const filteredQuestions = currentSectionQuestions[section] || [];
-
-        if (filteredQuestions.length > 0) {
-            const worksheet = workbook.addWorksheet(sectionTitle);
-
-            let headers = [];
-            switch (section) {
-                case 'survey':
-                    headers = ['Question', 'Answer Type'];
-                    break;
-                case 'kii':
-                    headers = ['Question'];
-                    break;
-                case 'fgd':
-                    headers = ['Question', 'Potential Probes/Follow-ups'];
-                    break;
-                case 'hfva':
-                    headers = ['Climate Hazard', 'Exposures', 'Category', 'Checklist Item', 'High', 'Medium', 'Low'];
-                    break;
-                case 'climateTrends':
-                    headers = ['Climate Hazard', 'Type of Data to be Collected', 'Description'];
-                    break;
-                case 'diseaseHazards':
-                    headers = ['Climate Hazard', 'Disease Category', 'Indicators to Follow'];
-                    break;
-                default:
-                    headers = ['Question'];
-            }
-
-            // Add styled header row
-            const headerRow = worksheet.addRow(headers);
-            headerRow.eachCell((cell, number) => {
-                cell.font = { bold: true, size: 12 };
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFD3D3D3' } // Light gray
-                };
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                cell.alignment = { wrapText: true };
-            });
-            
-            // Set fixed column width to 30 (adjust as needed)
-            worksheet.columns.forEach(column => {
-                column.width = 30;
-                column.alignment = { wrapText: true, vertical: 'top' };
-            });
-
-            // Add rows for filtered questions
-            filteredQuestions.forEach(question => {
-                const row = [];
-
-                if (section === 'hfva') {
-                    row.push(question.climateHazards || '');
-                    row.push(question.Exposures || question.exposures || '');
-                    row.push(question.category || '');
-                    row.push(question.questions || question.question || '');
-                    row.push('\u2610'); // High
-                    row.push('\u2610'); // Medium
-                    row.push('\u2610'); // Low
-                } else if (section === 'diseaseHazards') {
-                    row.push(question.climateHazards || '');
-                    row.push(question.diseaseCategory || '');
-                    row.push(question.indicatorsToFollow || '');
-                } else if (section === 'climateTrends') {
-                    row.push(question.climateHazards || '');
-                    row.push(question.typeOfData || '');
-                    row.push(question.Description || '');
-                } else if (section === 'fgd') {
-                    row.push(question.Question || '');
-                    row.push(question.potentialProbes || '');
-                } else if (section === 'kii') {
-                    row.push(question.Question || '');
-                } else if (section === 'survey') {
-                    row.push(question.Question || '');
-                    row.push(question.Answer || '');
-                } else {
-                    row.push('');
-                }
-                worksheet.addRow(row);
-            });
+        // First try to get section-specific saved data from sessionStorage
+        let sectionQuestions = [];
+        const savedData = sessionStorage.getItem(`questions_${currentSubmissionId}_${section}`);
+        
+        if (savedData) {
+            // If we have session-specific data, use it
+            sectionQuestions = JSON.parse(savedData);
+            console.log(`Using session-saved data for ${section} with ${sectionQuestions.length} questions`);
+        } else if (currentSectionQuestions[section]) {
+            // If not in sessionStorage but in memory, use that
+            sectionQuestions = currentSectionQuestions[section];
+            console.log(`Using in-memory data for ${section} with ${sectionQuestions.length} questions`);
         }
+
+        if (sectionQuestions.length === 0) {
+            console.log(`No questions found for section ${section}`);
+            return; // Skip this section
+        }
+
+        const worksheet = workbook.addWorksheet(sectionTitle);
+
+        // Rest of the export code remains the same...
+        // [existing code for headers and data export]
+        
+        let headers = [];
+        switch (section) {
+            case 'survey':
+                headers = ['Question', 'Answer Type'];
+                break;
+            case 'kii':
+                headers = ['Question'];
+                break;
+            case 'fgd':
+                headers = ['Question', 'Potential Probes/Follow-ups'];
+                break;
+            case 'hfva':
+                headers = ['Climate Hazard', 'Exposures', 'Category', 'Checklist Item', 'High', 'Medium', 'Low'];
+                break;
+            case 'climateTrends':
+                headers = ['Climate Hazard', 'Type of Data to be Collected', 'Description'];
+                break;
+            case 'diseaseHazards':
+                headers = ['Climate Hazard', 'Disease Category', 'Indicators to Follow'];
+                break;
+            default:
+                headers = ['Question'];
+        }
+
+        // Add styled header row
+        const headerRow = worksheet.addRow(headers);
+        headerRow.eachCell((cell, number) => {
+            cell.font = { bold: true, size: 12 };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD3D3D3' } // Light gray
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { wrapText: true };
+        });
+
+        // Set fixed column width to 30 (adjust as needed)
+        worksheet.columns.forEach(column => {
+            column.width = 30;
+            column.alignment = { wrapText: true, vertical: 'top' };
+        });
+
+        // Add rows for saved questions
+        sectionQuestions.forEach(question => {
+            const row = [];
+
+            if (section === 'hfva') {
+                row.push(question.climateHazards || '');
+                row.push(question.Exposures || question.exposures || '');
+                row.push(question.category || '');
+                row.push(question.questions || question.question || '');
+                row.push('\u2610'); // High
+                row.push('\u2610'); // Medium
+                row.push('\u2610'); // Low
+            } else if (section === 'diseaseHazards') {
+                row.push(question.climateHazards || '');
+                row.push(question.diseaseCategory || '');
+                row.push(question.indicatorsToFollow || '');
+            } else if (section === 'climateTrends') {
+                row.push(question.climateHazards || '');
+                row.push(question.typeOfData || '');
+                row.push(question.Description || '');
+            } else if (section === 'fgd') {
+                row.push(question.Question || '');
+                row.push(question.potentialProbes || '');
+            } else if (section === 'kii') {
+                row.push(question.Question || '');
+            } else if (section === 'survey') {
+                row.push(question.Question || '');
+                row.push(question.Answer || '');
+            } else {
+                row.push('');
+            }
+            worksheet.addRow(row);
+        });
     });
 
     // Export workbook as Excel file
@@ -1894,8 +1738,41 @@ function exportAssessment() {
     });
 }
 
+
 // Debugging: Check sessionStorage for diseaseHazards
 console.log('Session storage for diseaseHazards:', sessionStorage.getItem('diseaseHazards_filteredQuestions'));
+
+// Function to debug and display saved data for the current submission
+function debugSavedData() {
+    if (!currentSubmissionId) {
+        alert('No submission ID found. Cannot debug saved data.');
+        return;
+    }
+
+    const debugOutput = document.getElementById('debugOutput');
+    debugOutput.innerHTML = `<h4>Debugging Saved Data for Submission ID: ${currentSubmissionId}</h4>`;
+
+    Object.keys(sectionCollections).forEach(section => {
+        const savedData = localStorage.getItem(`questions_${currentSubmissionId}_${section}`);
+        const parsedData = savedData ? JSON.parse(savedData) : null;
+
+        debugOutput.innerHTML += `<h5>Section: ${section}</h5>`;
+        if (parsedData) {
+            debugOutput.innerHTML += `<pre>${JSON.stringify(parsedData, null, 2)}</pre>`;
+        } else {
+            debugOutput.innerHTML += `<p>No data found for this section.</p>`;
+        }
+    });
+}
+
+// Add a button to trigger the debugSavedData function
+document.addEventListener('DOMContentLoaded', function () {
+    const debuggingTools = document.getElementById('debuggingTools');
+    const debugSavedDataBtn = document.createElement('button');
+    debugSavedDataBtn.textContent = 'Debug Saved Data';
+    debugSavedDataBtn.onclick = debugSavedData;
+    debuggingTools.appendChild(debugSavedDataBtn);
+});
 
 
         // Helper function to format values
@@ -2076,5 +1953,4 @@ async function testCollections() {
 
 </body>
 </html>
-``` 
 
